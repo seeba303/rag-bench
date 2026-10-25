@@ -1,0 +1,4 @@
+{"id":"doc-a","text":"Retrieval augmented generation uses search to provide context for language models."}
+{"id":"doc-b","text":"A vector database indexes numeric embeddings for nearest neighbor retrieval."}
+{"id":"doc-c","text":"GitHub Actions can automatically run Python tests on push and pull request."}
+{"id":"doc-d","text":"Prompt injection is an attempt to manipulate an assistant through untrusted input."}
