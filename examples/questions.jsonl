@@ -1,0 +1,3 @@
+{"id":"q1","question":"What is retrieval augmented generation?","relevant_ids":["doc-a"]}
+{"id":"q2","question":"What is a vector database?","relevant_ids":["doc-b"]}
+{"id":"q3","question":"What is prompt injection?","relevant_ids":["doc-d"]}
