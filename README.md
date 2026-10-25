@@ -40,3 +40,44 @@ Zero-relevance questions are rejected rather than silently skewing evaluation. T
 Run on public or consented documents. Do not upload proprietary material to hosted models without approval.
 
 MIT licensed; see LICENSE.
+
+
+## BM25 comparison and evidence demo
+
+```bash
+python -m ragbench.cli --corpus examples/docs.jsonl --queries examples/questions.jsonl --k 2 --method bm25
+python -m unittest discover -s tests -v
+```
+
+`--method overlap` keeps the original baseline. BM25 adds corpus term rarity,
+term-frequency saturation and document-length normalization. It builds one index
+per evaluation and resolves ties by source ID. Defaults: k1=1.5, b=0.75. The same
+labeled queries and metrics can be used for either method. The toy corpus is a
+smoke test, not evidence of real-world retrieval quality.
+
+```python
+from ragbench.bm25 import BM25Index
+index = BM25Index([{"id": "refund-policy", "text": "Refunds are available within 30 days."}])
+print(index.evidence("refunds"))
+print(index.evidence("astronomy"))  # no_evidence, empty citations
+```
+
+Evidence contains exact source passages, IDs and ranking scores. It is not an LLM
+answer and does not follow instructions inside documents. A positive score means
+lexical overlap, not factual verification or confidence. There is no semantic
+matching, chunking, generated answer, or groundedness metric. English/ASCII token
+rules are inherited from the baseline. Large corpora require an inverted index;
+this version scans documents and is intended for small local evaluations.
+
+A regression fixture demonstrates length normalization correcting an overlap tie.
+The test suite also covers no-match abstention, source preservation, deterministic
+ties, malformed relevance labels and mutation isolation. Before claiming an
+improvement for a business use case, build a larger held-out labeled dataset and
+inspect misses. No API keys, model downloads or network access are required.
+
+### CI cost control
+
+This repository is private. The workflow is manual-only (`workflow_dispatch`)
+to avoid consuming paid Actions minutes without budget approval. It is not
+automatically triggered by pushes or pull requests. Local checks run the same
+commands. Enable automatic PR triggers after confirming free quota or a free runner.

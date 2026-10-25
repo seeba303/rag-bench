@@ -37,7 +37,7 @@ def retrieve(question: str, docs: list[dict], k: int = 3) -> list[dict]:
     return [{"id": doc_id, "score": score, "text": doc_map[doc_id]["text"]}
             for score, doc_id in ranks[:k]]
 
-def evaluate(docs: list[dict], queries: list[dict], k: int = 3) -> dict:
+def evaluate(docs: list[dict], queries: list[dict], k: int = 3, *, method: str = "overlap") -> dict:
     if k < 1:
         raise ValueError("k must be >= 1")
     ids = [d.get("id") for d in docs]
@@ -47,16 +47,23 @@ def evaluate(docs: list[dict], queries: list[dict], k: int = 3) -> dict:
         raise ValueError("document IDs must be unique")
     if not queries:
         raise ValueError("at least one query is required")
+    if method not in {"overlap", "bm25"}:
+        raise ValueError("method must be overlap or bm25")
+    from .bm25 import BM25Index, validate_docs
+    validate_docs(docs)
+    index = BM25Index(docs) if method == "bm25" else None
     records, total_recall, total_mrr, total_hit = [], 0.0, 0.0, 0.0
     for q in queries:
         if not isinstance(q.get("question"), str) or not isinstance(q.get("relevant_ids"), list):
             raise ValueError("queries require question and relevant_ids")
+        if not all(isinstance(x, str) for x in q["relevant_ids"]):
+            raise ValueError("relevant_ids must be nonempty string IDs")
         relevant = set(q["relevant_ids"])
         if not relevant or not all(isinstance(x, str) for x in relevant):
             raise ValueError("relevant_ids must be nonempty string IDs")
         if not relevant.issubset(set(ids)):
             raise ValueError("relevant_ids refer to unknown documents")
-        ranking = retrieve(q["question"], docs, k)
+        ranking = index.retrieve(q["question"], k) if index else retrieve(q["question"], docs, k)
         ranked_ids = [r["id"] for r in ranking]
         hits = [i + 1 for i, doc_id in enumerate(ranked_ids) if doc_id in relevant]
         recall = len(hits) / len(relevant)
@@ -68,6 +75,7 @@ def evaluate(docs: list[dict], queries: list[dict], k: int = 3) -> dict:
         records.append({"id": q.get("id"), "retrieved_ids": ranked_ids,
                         "recall_at_k": recall, "reciprocal_rank": mrr, "hit_at_k": bool(hits)})
     count = len(queries)
-    return {"k": k, "questions": count, "recall_at_k": round(total_recall / count, 4),
+    return {"method": method, "k": k, "questions": count, "recall_at_k": round(total_recall / count, 4),
             "mrr_at_k": round(total_mrr / count, 4), "hit_at_k": round(total_hit / count, 4),
             "results": records}
+
